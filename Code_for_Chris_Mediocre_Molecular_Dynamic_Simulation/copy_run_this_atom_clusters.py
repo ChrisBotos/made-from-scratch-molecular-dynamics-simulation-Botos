@@ -49,7 +49,7 @@ attract = False
 Dipole_Dipole = True
 
 have_borders = True
-have_energy_loss_when_border_collision = True
+have_energy_loss_when_border_collision = False
 border_collision_energy_loss = 0.3  # 0.2 is 20% of its kinetic energy
 border_collision_percentage_remaining_velocity = 1 - border_collision_energy_loss ** 0.5
 
