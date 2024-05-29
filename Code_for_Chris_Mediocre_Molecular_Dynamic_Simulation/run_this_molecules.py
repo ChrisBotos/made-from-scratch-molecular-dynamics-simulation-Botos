@@ -40,7 +40,7 @@ max_epsilon = 5000
 pixel_size = 2 * 10 ** -11  # Meters
 
 force_range = 1000 * pixel_size  # Meters.
-force_cap = 10 ** -15 # Newtons.
+force_cap = 10 ** -15  # Newtons.
 
 newton_third_law = True
 
