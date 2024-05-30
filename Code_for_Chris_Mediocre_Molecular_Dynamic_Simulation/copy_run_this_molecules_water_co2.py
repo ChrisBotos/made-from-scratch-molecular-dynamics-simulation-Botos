@@ -31,11 +31,11 @@ maximum_starting_z = 600
 time_step = 1 * 10 ** -34
 # Time_step defines how important the momentary force is.
 
-min_sigma = 3 * 10 ** -10  # Sigma is the finite distance at which the inter-particle potential is zero.
+min_sigma = 3 * 10 ** -10  # In Meters. Sigma is the finite distance at which the inter-particle potential is zero.
 max_sigma = 5 * 10 ** -10
 
-min_epsilon = 1000  # Epsilon is the well-depth.
-max_epsilon = 5000
+min_epsilon = 1 * 10 ** -19  # In Joules. Epsilon is the well-depth.
+max_epsilon = 5 * 10 ** -19
 
 pixel_size = 2 * 10 ** -11  # Meters
 
@@ -94,7 +94,7 @@ def force_function(distances, charges, atom_charge, time_step, A, B, pixel_size,
     # This is the equation for the Leonard-Jones potential. We simplify it for computational speed:
     # F = 4 * epsilon / distances * (2 * (sigma / (distances)) ** 12 - (sigma / (distances)) ** 6)
 
-    # A = 4 * epsilon
+    # A = epsilon * 24
     # B = sigma ** 6
 
     F = np.zeros(len(distances))

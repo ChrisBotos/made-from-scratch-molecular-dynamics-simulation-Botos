@@ -31,11 +31,11 @@ maximum_starting_z = 600
 time_step = 5 * 10 ** -34
 # Time_step defines how important the momentary force is.
 
-min_sigma = 3 * 10 ** -10  # Sigma is the finite distance at which the inter-particle potential is zero.
+min_sigma = 3 * 10 ** -10  # In Meters. Sigma is the finite distance at which the inter-particle potential is zero.
 max_sigma = 5 * 10 ** -10
 
-min_epsilon = 1000  # Epsilon is the well-depth.
-max_epsilon = 5000
+min_epsilon = 1 * 10 ** -19  # In Joules. Epsilon is the well-depth.
+max_epsilon = 5 * 10 ** -19
 
 pixel_size = 2 * 10 ** -11  # Meters
 
@@ -91,12 +91,10 @@ def force_function(distances, charges, atom_charge, time_step, A, B, pixel_size,
     # I use the force calculate from the potential energy according to the Lennard-Jones potential.
     # The force between two atoms in a Lennard-Jones potential can be obtained by taking the negative gradient of the potential energy with respect to the separation distance.
 
-    # 24 / (6 * 10 ** 23) == 4e-23
-
     # This is the equation for the Leonard-Jones potential. We simplify it for computational speed:
-    # F = 4e-23 * epsilon / distances * (2 * (sigma / (distances)) ** 12 - (sigma / (distances)) ** 6)
+    # F = 24 * epsilon / distances * (2 * (sigma / (distances)) ** 12 - (sigma / (distances)) ** 6)
 
-    # A = 4 * epsilon
+    # A = epsilon * 24
     # B = sigma ** 6
 
     F = np.zeros(len(distances))
@@ -372,7 +370,16 @@ def get_forces(position, copy_of_particle_array, sigma_array, epsilon_array, tim
         # We need to use the epsilon_array and get the epsilons for the appropriate color of each particle in range.
         epsilons_of_the_in_range_particles = epsilon_array[int(color), np.asarray(particles_in_range[6], dtype=np.int32)][not_on_top_mask]  # The rows of the epsilon array correspond to the force receivers and the columns to the force sources.
 
-        sum_forces = force_function(distances, charges, atom_charge, time_step, sigmas_of_the_in_range_particles, epsilons_of_the_in_range_particles, pixel_size, force_cap, Leonard_Jones, attract)
+        sum_forces = force_function(distances,
+                                    charges,
+                                    atom_charge,
+                                    time_step,
+                                    sigmas_of_the_in_range_particles,
+                                    epsilons_of_the_in_range_particles,
+                                    pixel_size,
+                                    force_cap,
+                                    Leonard_Jones,
+                                    attract)
 
 
         not_zero_dx_mask = dx != 0
@@ -643,7 +650,7 @@ def random_epsilon_array(number_of_types, min_epsilon, max_epsilon, newton_third
 
     '''For computational speed do the math on epsilon outside the main loop.'''
     if Leonard_Jones:
-        A = epsilon_array * 4 * 10 ** -23
+        A = epsilon_array * 24
     else:
         A = epsilon_array
 

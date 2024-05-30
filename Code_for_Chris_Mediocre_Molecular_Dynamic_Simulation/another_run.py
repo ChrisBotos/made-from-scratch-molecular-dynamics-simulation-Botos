@@ -5,14 +5,13 @@ import pygame
 import cProfile
 import pstats
 import random
-from numba import cuda
 
 
 """Parameters"""
 profile = False
 time_at_rounds = 100
 
-number_of_particles = np.array([8, 4, 0, 12])
+number_of_particles = np.array([8, 0, 0, 4])
 number_of_types = 4
 colors = np.array([(0, 255, 255), (255, 0, 0), (0, 0, 255), (0, 255, 0)])  # This is rgb.
 masses = np.array([0.17 * 10 ** -26, 1.99 * 10 ** -26, 2.33 * 10 ** -26, 2.66 * 10 ** -26])  # Kilograms. This corresponds to the above color list. Hydrogen, Carbon, Nitrogen, Oxygen.
@@ -30,7 +29,7 @@ maximum_starting_x = 500
 maximum_starting_y = 500
 maximum_starting_z = 600
 
-time_step = 10 ** -53
+time_step = 5 * 10 ** -35
 # Time_step defines how important the momentary force is.
 
 min_sigma = 3 * 10 ** -10  # In Meters. Sigma is the finite distance at which the inter-particle potential is zero.
@@ -46,7 +45,7 @@ pixel_size = 1 * 10 ** -11  # Meters
 
 newton_third_law = True
 
-Leonard_Jones = True
+Leonard_Jones = False
 attract = False
 Dipole_Dipole = True
 
@@ -57,21 +56,15 @@ border_collision_percentage_remaining_velocity = 1 - border_collision_energy_los
 
 have_molecules = True
 
-array_of_molecule_types_atoms = [[0, 1, 0, 2],
-                                 [2, 0, 0, 1]]  # The numbers correspond to the amount of atoms of that index inside the molecule.
+array_of_molecule_types_atoms = [[2, 0, 0, 1]]  # The numbers correspond to the amount of atoms of that index inside the molecule.
 
 # We put one of the atoms in the geometric shape as 0. Then we give the x, y and z distances of any other atom from it in lists.
 # We put them in order from lightest to heavier like in the masses and colors lists.
-array_of_molecule_types_shape = [[[0, -1.163 * 10 ** -10 / pixel_size, 1.163 * 10 ** -10 / pixel_size],
-                                  [0, 0, 0],
-                                  [0, 0, 0]],
-
-                                  [[-0.757 * 10 ** -10 / pixel_size, 0.757 * 10 ** -10 / pixel_size, 0],
+array_of_molecule_types_shape = [[[-0.757 * 10 ** -10 / pixel_size, 0.757 * 10 ** -10 / pixel_size, 0],
                                   [1.22 * 10 ** -10 / pixel_size, 1.22 * 10 ** -10 / pixel_size, 0],
                                   [0, 0, 0]]]
 
-array_of_molecule_types_charge = [[0, 0, 0],
-                                  [0.417, 0.417, -0.834]]  # The numbers correspond to the charge of atoms of that index inside the molecule.
+array_of_molecule_types_charge = [[0.417, 0.417, -0.834]]  # The numbers correspond to the charge of atoms of that index inside the molecule.
 
 z_multiplier = 0.01
 
@@ -83,51 +76,33 @@ fps_cap = 10000000000000
 """Functions"""
 
 
-'''Force Function'''  # TODO GPU
-@cuda.jit
-def force_function(distances, time_step, charges, atom_charge, A, B, pixel_size, force_cap, Leonard_Jones, attract, F):  # Negative means attraction and positive means repulsion.
+'''Force Function'''
+def force_function(distances, charges, atom_charge, time_step, A, B, pixel_size, force_cap, Leonard_Jones, attract):  # Negative means attraction and positive means repulsion.
+    # I use the force calculate from the potential energy according to the Lennard-Jones potential.
+    # The force between two atoms in a Lennard-Jones potential can be obtained by taking the negative gradient of the potential energy with respect to the separation distance.
 
-    # Thread ID in a 1D block
-    tx = cuda.threadIdx.x
-    # Block ID in a 1D grid
-    bx = cuda.blockIdx.x
-    # Block size, i.e., number of threads per block
-    bw = cuda.blockDim.x
+    # This is the equation for the Leonard-Jones potential. We simplify it for computational speed:
+    # F = 24 * epsilon / distances * (2 * (sigma / (distances)) ** 12 - (sigma / (distances)) ** 6)
 
-    # Compute flattened index inside the 1D arrays
-    index = tx + bx * bw
+    # A = epsilon * 24
+    # B = sigma ** 6
 
-    if index < distances.size:
-        # I use the force calculate from the potential energy according to the Lennard-Jones potential.
-        # The force between two atoms in a Lennard-Jones potential can be obtained by taking the negative gradient of the potential energy with respect to the separation distance.
-        distance_resized = distances[index] * pixel_size
+    F = np.zeros(len(distances))
 
-        # 24 / (6 * 10 ** 23) == 4e-23
+    if Leonard_Jones:
+        F += A / distances * (2 * B ** 2 / distances ** 12 - B / distances ** 6)
 
-        # This is the equation for the Leonard-Jones potential. We simplify it for computational speed:
-        # F = 4e-23 * epsilon / distances_resized * (2 * (sigma / (distances_resized)) ** 12 - (sigma / (distances_resized)) ** 6)
+        force_mistake = np.abs(F) > force_cap
 
-        # A = 4e-23 * epsilon
-        # B = sigma ** 6
+        F[force_mistake] = np.sign(F[force_mistake]) * force_cap
 
-        if Leonard_Jones:
-            F[index] += A[index] / distance_resized * (2 * B[index] ** 2 / distance_resized ** 12 - B[index] / distance_resized ** 6)  # TODO fix
+    if attract:
+        F += -distances
 
-        if attract:
-            F[index] += -distance_resized
+    if Dipole_Dipole:
+        F += 8987500000 * charges * atom_charge / distances ** 2  # This is Coulomb's Law.
 
-        if Dipole_Dipole:
-            F[index] += 8987500000 * charges[index] * atom_charge / distance_resized ** 2  # This is Coulomb's Law.
-
-        F[index] *= time_step
-
-        force_mistake = abs(F[index]) > force_cap
-
-        if force_mistake:
-            if F[index] > 0:
-                F[index] = force_cap
-            else:
-                F[index] = -force_cap
+    return F
 
 
 '''Split Vectors to its x,y,z vectors Function'''
@@ -385,32 +360,8 @@ def get_forces(position, copy_of_particle_array, sigma_array, epsilon_array, tim
         # We need to use the epsilon_array and get the epsilons for the appropriate color of each particle in range.
         epsilons_of_the_in_range_particles = epsilon_array[int(color), np.asarray(particles_in_range[6], dtype=np.int32)][not_on_top_mask]  # The rows of the epsilon array correspond to the force receivers and the columns to the force sources.
 
-        array_size = len(distances)
+        sum_forces = force_function(distances, charges, atom_charge, time_step, sigmas_of_the_in_range_particles, epsilons_of_the_in_range_particles, pixel_size, force_cap, Leonard_Jones, attract)
 
-        F = np.zeros(array_size)
-
-        # Allocate memory on the device (GPU)  # TODO GPU
-        d_distances = cuda.to_device(distances)
-        d_time_step = time_step
-        d_charges = cuda.to_device(charges)
-        d_atom_charge = atom_charge
-        d_sigmas_of_the_in_range_particles = cuda.to_device(sigmas_of_the_in_range_particles)
-        d_epsilons_of_the_in_range_particles = cuda.to_device(epsilons_of_the_in_range_particles)
-        d_pixel_size = pixel_size
-        d_force_cap = force_cap
-        d_Leonard_Jones = Leonard_Jones
-        d_attract = attract
-
-
-        d_F = cuda.to_device(F)
-
-        # Set up the grid and block dimensions
-        block_size = 1024
-        grid_size = (array_size + block_size - 1) // block_size
-
-        force_function[grid_size, block_size](d_distances, d_time_step, d_charges, d_atom_charge, d_sigmas_of_the_in_range_particles, d_epsilons_of_the_in_range_particles, d_pixel_size, d_force_cap, d_Leonard_Jones, d_attract, d_F)
-
-        sum_forces = d_F.copy_to_host()
 
         not_zero_dx_mask = dx != 0
         not_zero_dy_mask = dy != 0
@@ -614,6 +565,12 @@ def random_positions_particle_array(number_of_particles, number_of_types, minimu
         counter += 1
 
 
+    '''Resizing'''
+    x_coordinates *= pixel_size
+    y_coordinates *= pixel_size
+    z_coordinates *= pixel_size
+
+
     particle_array = np.array([
         x_coordinates,
         y_coordinates,
@@ -713,11 +670,12 @@ def move(particle_array, sigma_array, epsilon_array, time_step, force_range, hav
         # z increases towards out.
 
         if have_molecules and molecule != 0:
-            Fx += F_xyz[0]
-            Fy += F_xyz[1]
-            Fz += F_xyz[2]
 
             if molecule == previous_molecule:
+                Fx += F_xyz[0]
+                Fy += F_xyz[1]
+                Fz += F_xyz[2]
+
                 c += 1
                 molecule_length += 1
                 molecule_mass += mass
@@ -737,14 +695,14 @@ def move(particle_array, sigma_array, epsilon_array, time_step, force_range, hav
 
                     current_atom = c - molecule_length + atom_in_molecule
 
-                    particle_array[3, current_atom] += ax
-                    particle_array[4, current_atom] += ay
-                    particle_array[5, current_atom] += az
+                    particle_array[3, current_atom] += ax * time_step
+                    particle_array[4, current_atom] += ay * time_step
+                    particle_array[5, current_atom] += az * time_step
 
                     '''Changing Positions'''
-                    particle_array[0, current_atom] += particle_array[3, current_atom]
-                    particle_array[1, current_atom] += particle_array[4, current_atom]
-                    particle_array[2, current_atom] += particle_array[5, current_atom]
+                    particle_array[0, current_atom] += copy_of_particle_array[3, current_atom] * time_step + 0.5 * particle_array[3, current_atom] * time_step
+                    particle_array[1, current_atom] += copy_of_particle_array[4, current_atom] * time_step + 0.5 * particle_array[4, current_atom] * time_step
+                    particle_array[2, current_atom] += copy_of_particle_array[5, current_atom] * time_step + 0.5 * particle_array[5, current_atom] * time_step
 
 
                 '''Counting for the current atom which does not belong to the molecule we moved'''
@@ -768,14 +726,14 @@ def move(particle_array, sigma_array, epsilon_array, time_step, force_range, hav
             # For the cases where some of dx, dy, dz are 0 np.sign() returns 0.
             # Negative means attraction and positive means repulsion just like the forces.
 
-            particle_array[3, c] += ax
-            particle_array[4, c] += ay
-            particle_array[5, c] += az
+            particle_array[3, c] += ax * time_step
+            particle_array[4, c] += ay * time_step
+            particle_array[5, c] += az * time_step
 
             '''Changing Positions'''
-            particle_array[0, c] += particle_array[3, c]
-            particle_array[1, c] += particle_array[4, c]
-            particle_array[2, c] += particle_array[5, c]
+            particle_array[0, c] += copy_of_particle_array[3, c] * time_step + 0.5 * particle_array[3, c] * time_step
+            particle_array[1, c] += copy_of_particle_array[4, c] * time_step + 0.5 * particle_array[4, c] * time_step
+            particle_array[2, c] += copy_of_particle_array[5, c] * time_step + 0.5 * particle_array[5, c] * time_step
 
             Fx = 0
             Fy = 0
@@ -799,30 +757,30 @@ def move(particle_array, sigma_array, epsilon_array, time_step, force_range, hav
 
             current_atom = c - molecule_length + atom_in_molecule
 
-            particle_array[3, current_atom] += ax
-            particle_array[4, current_atom] += ay
-            particle_array[5, current_atom] += az
+            particle_array[3, current_atom] += ax * time_step
+            particle_array[4, current_atom] += ay * time_step
+            particle_array[5, current_atom] += az * time_step
 
             '''Changing Positions'''
-            particle_array[0, current_atom] += particle_array[3, current_atom]
-            particle_array[1, current_atom] += particle_array[4, current_atom]
-            particle_array[2, current_atom] += particle_array[5, current_atom]
+            particle_array[0, current_atom] += particle_array[3, current_atom] * time_step + 0.5 * particle_array[3, current_atom] * time_step
+            particle_array[1, current_atom] += particle_array[4, current_atom] * time_step + 0.5 * particle_array[4, current_atom] * time_step
+            particle_array[2, current_atom] += particle_array[5, current_atom] * time_step + 0.5 * particle_array[5, current_atom] * time_step
 
 
     '''Borders'''
     if have_borders:
         # In case the new position is two or more times as fat the x size of the box we need to calculate for multiple collisions with both borders.
-        x_collisions = collide_until_within_borders(particle_array[0], particle_array[3], particle_array[7], x_border, have_energy_loss_when_border_collision, border_collision_percentage_remaining_velocity, have_molecules)
+        x_collisions = collide_until_within_borders(particle_array[0], particle_array[3], particle_array[7], x_border * pixel_size, have_energy_loss_when_border_collision, border_collision_percentage_remaining_velocity, have_molecules)
 
         particle_array[0] = x_collisions[0]
         particle_array[3] = x_collisions[1]
 
-        y_collisions = collide_until_within_borders(particle_array[1], particle_array[4], particle_array[7], y_border, have_energy_loss_when_border_collision, border_collision_percentage_remaining_velocity, have_molecules)
+        y_collisions = collide_until_within_borders(particle_array[1], particle_array[4], particle_array[7], y_border * pixel_size, have_energy_loss_when_border_collision, border_collision_percentage_remaining_velocity, have_molecules)
 
         particle_array[1] = y_collisions[0]
         particle_array[4] = y_collisions[1]
 
-        z_collisions = collide_until_within_borders(particle_array[2], particle_array[5], particle_array[7], z_border, have_energy_loss_when_border_collision, border_collision_percentage_remaining_velocity, have_molecules)
+        z_collisions = collide_until_within_borders(particle_array[2], particle_array[5], particle_array[7], z_border * pixel_size, have_energy_loss_when_border_collision, border_collision_percentage_remaining_velocity, have_molecules)
 
         particle_array[2] = z_collisions[0]
         particle_array[5] = z_collisions[1]
@@ -867,9 +825,9 @@ if __name__ == "__main__":
         # Clear the screen
         screen.fill(black)
 
-        if round % time_at_rounds == 0:
+        if round % 100 == 0:
             print(round, 'round\n')
-            print('Speed is', (time.time() - start_time) / time_at_rounds, 'seconds per round.')
+            print('Speed is', (time.time() - start_time) / 100, 'seconds per round.')
 
             Ukin = 0.5 * masses[pa[6].astype(int)] * (pa[3] ** 2 + pa[4] ** 2 + pa[5] ** 2)
             print('Total Kinetic energy is', np.sum(Ukin), 'Joules\n')
@@ -883,6 +841,9 @@ if __name__ == "__main__":
 
         # Use the sorted indices to rearrange the array
         z_sorted_pa = pa[:, sorted_indices].copy()
+
+        # Resize
+        z_sorted_pa[:3] /= pixel_size
 
         # Draw points on the screen
         for x, y, z, color in zip(z_sorted_pa[0], z_sorted_pa[1], z_sorted_pa[2], z_sorted_pa[6]):
@@ -902,10 +863,10 @@ if __name__ == "__main__":
         pygame.time.Clock().tick(fps_cap)
 
         if not pause:
-            # print(pa[:6], 'pa\n')
+            # print(pa[1],'\n', pa[3], 'pa\n')
             round += 1
 
-        if round == time_at_rounds and profile:
+        if round == 100 and profile:
             profiler.disable()
             stats = pstats.Stats(profiler)
             stats.sort_stats(pstats.SortKey.TIME)
@@ -922,17 +883,17 @@ if __name__ == "__main__":
             x_scroll += scrolling_speed
 
         if key[pygame.K_w]:
-            pa[4] -= 1 * pixel_size / pixel_size
+            pa[4] -= 6 * 10 ** 1
         if key[pygame.K_s]:
-            pa[4] += 1 * pixel_size / pixel_size
+            pa[4] += 6 * 10 ** 1
         if key[pygame.K_a]:
-            pa[3] -= 1 * pixel_size / pixel_size
+            pa[3] -= 6 * 10 ** 1
         if key[pygame.K_d]:
-            pa[3] += 1 * pixel_size / pixel_size
+            pa[3] += 6 * 10 ** 1
         if key[pygame.K_i]:
-            pa[5] -= 1 * pixel_size / pixel_size
+            pa[5] -= 6 * 10 ** 1
         if key[pygame.K_o]:
-            pa[5] += 1 * pixel_size / pixel_size
+            pa[5] += 6 * 10 ** 1
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

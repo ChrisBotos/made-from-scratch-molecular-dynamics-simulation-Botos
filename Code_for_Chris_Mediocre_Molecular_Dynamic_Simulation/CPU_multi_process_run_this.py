@@ -29,11 +29,11 @@ maximum_starting_z = 300
 
 time_step = 10 ** -18  # Time_step defines how important the momentary force is.
 
-min_sigma = 3 * 10 ** -10  # Sigma is the finite distance at which the inter-particle potential is zero.
+min_sigma = 3 * 10 ** -10  # In Meters. Sigma is the finite distance at which the inter-particle potential is zero.
 max_sigma = 5 * 10 ** -10
 
-min_epsilon = 1000  # Epsilon is the well-depth.
-max_epsilon = 5000
+min_epsilon = 1 * 10 ** -19  # In Joules. Epsilon is the well-depth.
+max_epsilon = 5 * 10 ** -19
 
 force_range = 1000  # Pixels not meters.
 force_cap = 10 ** -25
