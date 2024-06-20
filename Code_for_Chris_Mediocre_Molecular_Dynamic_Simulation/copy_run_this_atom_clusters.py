@@ -10,7 +10,7 @@ import random
 """Parameters"""
 profile = True
 
-number_of_particles = np.array([40, 170, 100, 30])
+number_of_particles = np.array([100, 50, 50, 50])
 number_of_types = 4
 colors = np.array([(0, 255, 255), (255, 0, 0), (0, 0, 255), (0, 255, 0)])  # This is rgb.
 masses = np.array([0.17 * 10 ** -26, 1.99 * 10 ** -26, 2.33 * 10 ** -26, 2.66 * 10 ** -26])  # Kilograms. This corresponds to the above color list. Hydrogen, Carbon, Nitrogen, Oxygen.
@@ -28,16 +28,16 @@ maximum_starting_x = 500
 maximum_starting_y = 500
 maximum_starting_z = 600
 
-time_step = 5 * 10 ** -13
+time_step = 5 * 10 ** -11
 # Time_step defines how important the momentary force is.
 
 min_sigma = 3 * 10 ** -10  # In Meters. Sigma is the finite distance at which the inter-particle potential is zero.
 max_sigma = 5 * 10 ** -10
 
-min_epsilon = 1 * 10 ** -19  # In Joules. Epsilon is the well-depth.
-max_epsilon = 5 * 10 ** -19
+min_epsilon = 15 * 10 ** -19  # In Joules. Epsilon is the well-depth.
+max_epsilon = 20 * 10 ** -19
 
-pixel_size = 4 * 10 ** -11  # Meters
+pixel_size = 1 * 10 ** -9  # Meters
 
 force_range = 1000 * pixel_size  # Meters.
 force_cap = 10 ** -15 # Newtons.

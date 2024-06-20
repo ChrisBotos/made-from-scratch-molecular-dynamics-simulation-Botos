@@ -11,7 +11,7 @@ import random
 profile = False
 time_at_rounds = 100
 
-number_of_particles = np.array([8, 0, 0, 4])
+number_of_particles = np.array([80, 0, 0, 40])
 number_of_types = 4
 colors = np.array([(0, 255, 255), (255, 0, 0), (0, 0, 255), (0, 255, 0)])  # This is rgb.
 masses = np.array([0.17 * 10 ** -26, 1.99 * 10 ** -26, 2.33 * 10 ** -26, 2.66 * 10 ** -26])  # Kilograms. This corresponds to the above color list. Hydrogen, Carbon, Nitrogen, Oxygen.
@@ -39,14 +39,14 @@ min_epsilon = 1 * 10 ** -19  # In Joules. Epsilon is the well-depth.
 max_epsilon = 5 * 10 ** -19
 
 force_range = 1000  # Pixels not meters.
-force_cap = 10 ** -26  # Newtons.
+force_cap = 10 ** -32  # Newtons.
 
 pixel_size = 1 * 10 ** -11  # Meters
 
 newton_third_law = True
 
 Leonard_Jones = False
-attract = False
+attract = False  # Time step -17
 Dipole_Dipole = True
 
 have_borders = True
