@@ -14,6 +14,7 @@ time_at_rounds = 100
 
 number_of_particles = np.array([8, 4, 0, 12])
 number_of_types = 4
+
 colors = np.array([(0, 255, 255), (255, 0, 0), (0, 0, 255), (0, 255, 0)])  # This is rgb.
 masses = np.array([0.17 * 10 ** -26, 1.99 * 10 ** -26, 2.33 * 10 ** -26, 2.66 * 10 ** -26])  # Kilograms. This corresponds to the above color list. Hydrogen, Carbon, Nitrogen, Oxygen.
 charges = np.array([0., 0., 0., 0.])  # Charges for free atoms not in molecules
