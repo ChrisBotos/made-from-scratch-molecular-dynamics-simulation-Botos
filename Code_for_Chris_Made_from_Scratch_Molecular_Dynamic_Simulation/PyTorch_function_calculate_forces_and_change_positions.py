@@ -4,9 +4,24 @@ from GPU_functions import force_function, a_to_ax_ay_az
 
 def calculate_forces_and_change_positions(particle_array, sigma_array, epsilon_array, time_step, force_range, masses, pixel_size, force_cap, Van_der_Waals, attract, device):
 
-    expanded_particle_array = particle_array.unsqueeze(0).unsqueeze(1).expand(len(particle_array[0]), len(particle_array[0]), -1).clone()  # Cloning them just to be safe.
-    expanded_sigma_array = sigma_array.unsqueeze(0).unsqueeze(1).expand(len(particle_array[0]), len(particle_array[0]), -1).clone()
-    expanded_epsilon_array = epsilon_array.unsqueeze(0).unsqueeze(1).expand(len(particle_array[0]), len(particle_array[0]), -1).clone()
+    # expanded_particle_array = particle_array.unsqueeze(0).unsqueeze(1).expand(len(particle_array[0]), len(particle_array[0]), -1).clone()  # Cloning them just to be safe.
+    # expanded_sigma_array = sigma_array.unsqueeze(0).unsqueeze(1).expand(len(particle_array[0]), len(particle_array[0]), -1).clone()
+    # expanded_epsilon_array = epsilon_array.unsqueeze(0).unsqueeze(1).expand(len(particle_array[0]), len(particle_array[0]), -1).clone()
+
+    expanded_particle_array = particle_array.unsqueeze(0).expand(
+        len(particle_array[0]), len(particle_array[0]),
+        particle_array.shape[0], particle_array.shape[1]
+    ).clone()
+
+    expanded_sigma_array = sigma_array.unsqueeze(0).expand(
+        len(sigma_array[0]), len(sigma_array[0]),
+        sigma_array.shape[0], sigma_array.shape[1]
+    ).clone()
+
+    expanded_epsilon_array = epsilon_array.unsqueeze(0).expand(
+        len(epsilon_array[0]), len(epsilon_array[0]),
+        epsilon_array.shape[0], epsilon_array.shape[1]
+    ).clone()
 
     x = particle_array[0]
     y = particle_array[1]
